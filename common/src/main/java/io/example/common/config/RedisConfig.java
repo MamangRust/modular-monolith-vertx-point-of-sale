@@ -8,7 +8,6 @@ import io.vertx.redis.client.RedisOptions;
 import java.util.Arrays;
 
 public class RedisConfig {
-
   public static RedisAPI createClient(Vertx vertx) {
     String redisHost = System.getenv().getOrDefault("REDIS_HOST", "localhost");
     int redisPort = Integer.parseInt(System.getenv().getOrDefault("REDIS_PORT", "6379"));
