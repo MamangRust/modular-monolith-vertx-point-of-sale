@@ -2,7 +2,7 @@
 
 A production-grade, highly resilient, and fully observable **modular-monolith point of sale (POS) backend** built in **Java 21** using the **Eclipse Vert.x** reactive framework. Designed around domain-driven service boundaries following Clean Architecture and CQRS principles, it retains the operational and deployment simplicity of a single deployment unit while maintaining logical isolation typical of microservices.
 
-Each point of sale (POS) business domain — Users, Roles, Banners, Carts, Categories, Merchants, Merchant Awards, Merchant Businesses, Merchant Details, Merchant Policies, Orders, Order Items, Products, Reviews, Review Details, Shipping Addresses, Sliders, Transactions — lives in its own self-contained Maven module. These modules communicate synchronously via high-performance **gRPC** protocols and asynchronously using **Apache Kafka** event propagation, exposing a unified reactive entry point through a **REST API Gateway** powered by the Eclipse Vert.x HTTP Router.
+Each point of sale (POS) business domain — Auth, Cashier, Category, Merchant, Order, Order Item, Product, Role, and Transaction — lives in its own self-contained Maven module. These modules communicate synchronously via high-performance **gRPC** protocols and asynchronously using **Apache Kafka** event propagation, exposing a unified reactive entry point through a **REST API Gateway** powered by the Eclipse Vert.x HTTP Router.
 
 The platform is fortified with a **comprehensive observability suite** (Prometheus, Grafana, Loki, Jaeger, OpenTelemetry, Pyroscope), robust connection pooling via **PgBouncer**, **distributed Redis Cluster caching** with custom telemetry for each service, and Kubernetes configurations ready for production auto-scaling.
 
@@ -63,36 +63,23 @@ graph TB
 
         subgraph IdentityDomain["Identity & Access"]
             AUTH["Auth Service<br/>JWT & BCrypt Server"]
-            USER["User Service<br/>Profile Management"]
             ROLE["Role Service<br/>RBAC & Permissions"]
         end
 
         subgraph MerchantDomain["Merchant Management"]
             MERCH["Merchant Service"]
-            MDETAIL["Merchant Detail"]
-            MBIZ["Merchant Business"]
-            MPOL["Merchant Policy"]
-            MAWARD["Merchant Award"]
         end
 
         subgraph CatalogDomain["Catalog & Inventory"]
             PROD["Product Service"]
             CAT["Category Service"]
-            BANNER["Banner Service"]
-            SLIDER["Slider Service"]
         end
 
         subgraph POSDomain["POS & Checkout"]
-            CART["Cart Service"]
+            CASHIER["Cashier Service"]
             ORDER["Order Service"]
             OITEM["Order Item Service"]
             TXN["Transaction Service"]
-            SHIP["Shipping Address Service"]
-        end
-
-        subgraph FeedbackDomain["Customer Feedback"]
-            REVIEW["Review Service"]
-            RDETAIL["Review Detail Service"]
         end
     end
     class BusinessServices domain
@@ -152,7 +139,7 @@ graph TB
 
 ## Service Catalog
 
-The modular architecture consists of **22 logical micro-applications** plus supporting database and migrations:
+The modular architecture consists of **12 logical micro-applications** plus supporting database and migrations:
 
 ```mermaid
 graph LR
@@ -164,38 +151,25 @@ graph LR
         API["API Gateway<br/>Vert.x REST Router"]:::gw
     end
 
-    subgraph Identity["Identity & Access (3)"]
+    subgraph Identity["Identity & Access (2)"]
         A1["auth"]:::svc
-        A2["user"]:::svc
-        A3["role"]:::svc
+        A2["role"]:::svc
     end
 
-    subgraph Merchant["Merchant Suite (5)"]
+    subgraph Merchant["Merchant Suite (1)"]
         M1["merchant"]:::svc
-        M2["merchant_detail"]:::svc
-        M3["merchant_business"]:::svc
-        M4["merchant_policy"]:::svc
-        M5["merchant_award"]:::svc
     end
 
-    subgraph Catalog["Catalog (4)"]
+    subgraph Catalog["Catalog (2)"]
         C1["product"]:::svc
         C2["category"]:::svc
-        C3["banner"]:::svc
-        C4["slider"]:::svc
     end
 
-    subgraph POS["POS (5)"]
-        O1["cart"]:::svc
+    subgraph POS["POS (4)"]
+        O1["cashier"]:::svc
         O2["order"]:::svc
         O3["order_item"]:::svc
         O4["transaction"]:::svc
-        O5["shipping_address"]:::svc
-    end
-
-    subgraph Feedback["Feedback (2)"]
-        R1["review"]:::svc
-        R2["review_detail"]:::svc
     end
 
     subgraph Support["Support Services (2)"]
@@ -207,7 +181,6 @@ graph LR
     API -->|"gRPC Client"| Merchant
     API -->|"gRPC Client"| Catalog
     API -->|"gRPC Client"| POS
-    API -->|"gRPC Client"| Feedback
 ```
 
 ---
@@ -307,7 +280,7 @@ sequenceDiagram
 
 ### Asynchronous Flow (Kafka Notification Event pipeline)
 
-High-performance point of sale (POS) actions (like merchant onboarding, order checkouts, or transaction creations) trigger background notification events published directly to Apache Kafka brokers. The isolated Email service listens to Kafka, maps the events, and contacts SMTP services.
+High-performance point of sale (POS) actions (like cashier registration, order checkouts, or transaction creations) trigger background notification events published directly to Apache Kafka brokers. The isolated Email service listens to Kafka, maps the events, and contacts SMTP services.
 
 ```mermaid
 sequenceDiagram
@@ -317,7 +290,7 @@ sequenceDiagram
     participant EMAIL as Email Worker Service
     participant SMTP as SMTP Server
 
-    SVC->>K: Publish Event (e.g. order.created / merchant.onboarded)
+    SVC->>K: Publish Event (e.g. order.created / cashier.registered)
     K-->>EMAIL: Deliver topic payload (asynchronous consumer)
     EMAIL->>EMAIL: Map payload details
     EMAIL->>SMTP: Send custom styled notification
@@ -337,7 +310,7 @@ graph TB
 
     subgraph Sources["Telemetry Sources"]
         direction TB
-        SVCS["All Business Services<br/>(22 services)"]:::service
+        SVCS["All Business Services<br/>(12 active submodules)"]:::service
         KAFKA_SRC["Kafka Broker"]:::service
         NODES["Host / Node"]:::service
         DB_SRC["PostgreSQL Engine"]:::service
@@ -420,36 +393,23 @@ flowchart TD
         subgraph Services["Core Service Containers"]
             subgraph Identity["Identity & Access"]
                 AUTH["auth"]
-                USER["user"]
                 ROLE["role"]
             end
 
             subgraph MerchantSuite["Merchant Domain"]
                 MERCH["merchant"]
-                MDETAIL["merchant_detail"]
-                MBIZ["merchant_business"]
-                MPOL["merchant_policy"]
-                MAWARD["merchant_award"]
             end
 
             subgraph CatalogSuite["Catalog"]
                 PROD["product"]
                 CAT["category"]
-                BANNER["banner"]
-                SLIDER["slider"]
             end
 
             subgraph POSSuite["POS & Checkout"]
-                CART["cart"]
+                CASHIER["cashier"]
                 ORDER["order"]
                 OITEM["order_item"]
                 TXN["transaction"]
-                SHIP["shipping_address"]
-            end
-
-            subgraph ReviewSuite["Feedback"]
-                REVIEW["review"]
-                RDETAIL["review_detail"]
             end
         end
         class Services core
@@ -623,29 +583,18 @@ docker-compose -f deployments/local/docker-compose.yml down -v
 ```
 vertx-point_of_sale/
 ├── pom.xml                         # Root Maven Parent POM
-├── proto/                          # Protobuf contracts (22 domains)
+├── proto/                          # Protobuf contracts (12 active submodules)
 │   ├── auth/                       #   Authentication specifications
-│   ├── banner/                     #   Promo banner specifications
-│   ├── cart/                       #   Cart specifications
+│   ├── cashier/                    #   Cashier specifications
 │   ├── category/                   #   Product category specifications
 │   ├── common/                     #   Shared data specifications
 │   ├── merchant/                   #   Merchant specifications
-│   ├── merchant_award/             #   Merchant award specifications
-│   ├── merchant_business/          #   Merchant business specifications
-│   ├── merchant_detail/            #   Merchant details specifications
-│   ├── merchant_document/          #   Merchant document specifications
-│   ├── merchant_social_link/       #   Merchant social link specifications
-│   ├── merchant_policy/            #   Merchant policy specifications
 │   ├── order/                      #   Order specifications
 │   ├── order_item/                 #   Order item specifications
 │   ├── product/                    #   Product specifications
-│   ├── review/                     #   Review specifications
-│   ├── review_detail/              #   Review details specifications
 │   ├── role/                       #   Role management specifications
-│   ├── shipping_address/           #   Shipping address specifications
-│   ├── slider/                     #   Slider carousels specifications
 │   ├── transaction/                #   Payment transactions specifications
-│   └── user/                       #   User CRUD specifications
+│   └── user/                       #   User query specifications
 ├── common/                         # Shared Maven library Module
 │   └── src/main/java/io/example/common/
 │       ├── config/                 #   AppConfig, JwtConfig, RedisConfig, FlywayConfig
@@ -654,24 +603,14 @@ vertx-point_of_sale/
 │       └── pb/                     #   Compiled Java Protobuf gRPC stubs
 ├── apigateway/                     # REST API Gateway (REST Router proxying to gRPC)
 ├── auth/                           # Authentication engine verticle
-├── user/                           # User profiles verticle (CQRS)
 ├── role/                           # RBAC authorization verticle
 ├── merchant/                       # Merchant core verticle
-├── merchant_award/                 # Merchant awards verticle
-├── merchant_business/              # Merchant business details verticle
-├── merchant_detail/                # Merchant details verticle
-├── merchant_policy/                # Merchant policies verticle
+├── cashier/                        # Cashiers registration & metrics verticle
 ├── product/                        # Product management verticle
 ├── category/                       # Category management verticle
-├── cart/                           # Shopping cart verticle
 ├── order/                          # Order management verticle
 ├── order_item/                     # Order item decomposition verticle
 ├── transaction/                    # Payment recording verticle
-├── shipping_address/               # Shipping address management verticle
-├── banner/                         # Banner management verticle
-├── slider/                         # Slider carousels verticle
-├── review/                         # Product review verticle
-├── review_detail/                  # Review details verticle
 ├── email/                          # Asynchronous Kafka notifications verticle
 ├── deployments/
 │   ├── local/                      #   Docker compose infrastructure files
@@ -682,7 +621,6 @@ vertx-point_of_sale/
 ```
 
 ---
-
 
 ## License
 
