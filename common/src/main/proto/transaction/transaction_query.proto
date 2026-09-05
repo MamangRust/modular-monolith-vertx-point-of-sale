@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "pb.transaction";
+option java_outer_classname = "TransactionQueryProto";
+
+package pb.transaction;
+
+import "transaction/transaction.proto";
+import "common/api.proto";
+
+// ─── Request messages ─────────────────────────────────────────────────────────
+
+message FindAllTransactionRequest {
+  int32  page      = 1;
+  int32  page_size = 2;
+  string search    = 3;
+}
+
+message FindAllTransactionMerchantRequest {
+  int32  merchant_id = 1;
+  int32  page        = 2;
+  int32  page_size   = 3;
+  string search      = 4;
+}
+
+// ─── Service ─────────────────────────────────────────────────────────────────
+
+service TransactionQueryService {
+  rpc FindAll(FindAllTransactionRequest)
+      returns (ApiResponsePaginationTransaction);
+
+  rpc FindByMerchant(FindAllTransactionMerchantRequest)
+      returns (ApiResponsePaginationTransaction);
+
+  rpc FindById(FindByIdTransactionRequest)
+      returns (ApiResponseTransaction);
+
+  rpc FindByActive(FindAllTransactionRequest)
+      returns (ApiResponsePaginationTransactionDeleteAt);
+
+  rpc FindByTrashed(FindAllTransactionRequest)
+      returns (ApiResponsePaginationTransactionDeleteAt);
+}

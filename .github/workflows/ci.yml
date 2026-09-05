@@ -1,0 +1,123 @@
+name: CI & DevSecOps Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+jobs:
+  build:
+    name: Build & Test Java Application
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Compile and Test
+        run: mvn -B clean verify -Dsurefire.failIfNoSpecifiedTests=false
+
+      - name: Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: '**/target/surefire-reports/'
+
+  security-scan:
+    name: DevSecOps Security Auditing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy Filesystem Scan (Vulnerabilities & Secrets)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          scanners: 'vuln,secret'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          github-token: ${{ github.token }}
+
+      - name: Run Trivy Config Scan (IaC Misconfigurations)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          github-token: ${{ github.token }}
+
+  build-docker:
+    name: Build & Scan Docker Images
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build All Docker Images
+        run: |
+          bash build-docker-images.sh
+
+      - name: Scan All Built Images
+        env:
+          TRIVY_GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          for service in db-migration auth user merchant role transaction cashier category product order order_item apigateway email; do
+            trivy image --severity HIGH,CRITICAL --exit-code 1 \
+              modular-monolith-vertx-point-of-sale/${service}:latest
+          done
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: modular-monolith-vertx-point-of-sale/auth:latest
+          format: spdx-json
+          output-file: sbom-auth.spdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: '*.spdx.json'
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and Push to GHCR
+        if: github.event_name == 'push'
+        run: |
+          IMAGE_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_TAG="${{ github.sha }}"
+          for service in db-migration auth user merchant role transaction cashier category product order order_item apigateway email; do
+            docker tag modular-monolith-vertx-point-of-sale/${service}:latest ghcr.io/${IMAGE_OWNER}/vertx-point-of-sale/${service}:${IMAGE_TAG}
+            docker tag modular-monolith-vertx-point-of-sale/${service}:latest ghcr.io/${IMAGE_OWNER}/vertx-point-of-sale/${service}:latest
+            docker push ghcr.io/${IMAGE_OWNER}/vertx-point-of-sale/${service}:${IMAGE_TAG}
+            docker push ghcr.io/${IMAGE_OWNER}/vertx-point-of-sale/${service}:latest
+          done

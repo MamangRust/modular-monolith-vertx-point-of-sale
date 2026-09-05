@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "pb.transaction";
+option java_outer_classname = "TransactionCommandProto";
+
+package pb.transaction;
+
+import "transaction/transaction.proto";
+import "google/protobuf/empty.proto";
+
+// ─── Request messages ─────────────────────────────────────────────────────────
+
+message CreateTransactionRequest {
+  int32  order_id        = 1;
+  int32  merchant_id      = 2;
+  string payment_method  = 3;
+  int32  amount          = 4;
+  string payment_status  = 5;
+}
+
+message UpdateTransactionRequest {
+  int32  transaction_id  = 1;
+  int32  order_id        = 2;
+  int32  merchant_id      = 3;
+  string payment_method  = 4;
+  int32  amount          = 5;
+  string payment_status  = 6;
+}
+
+// ─── Service ─────────────────────────────────────────────────────────────────
+
+service TransactionCommandService {
+  rpc Create(CreateTransactionRequest)
+      returns (ApiResponseTransaction);
+
+  rpc Update(UpdateTransactionRequest)
+      returns (ApiResponseTransaction);
+
+  rpc TrashedTransaction(FindByIdTransactionRequest)
+      returns (ApiResponseTransactionDeleteAt);
+
+  rpc RestoreTransaction(FindByIdTransactionRequest)
+      returns (ApiResponseTransactionDeleteAt);
+
+  rpc DeleteTransactionPermanent(FindByIdTransactionRequest)
+      returns (ApiResponseTransactionDelete);
+
+  rpc RestoreAllTransaction(google.protobuf.Empty)
+      returns (ApiResponseTransactionAll) {}
+
+  rpc DeleteAllTransactionPermanent(google.protobuf.Empty)
+      returns (ApiResponseTransactionAll) {}
+}

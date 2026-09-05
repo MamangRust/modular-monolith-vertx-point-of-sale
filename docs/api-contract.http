@@ -1,0 +1,630 @@
+# =============================================================================
+# API CONTRACT — Point-of-Sale REST API Gateway
+# =============================================================================
+# Source of truth: apigateway/src/main/java/io/example/apigateway/routes/GatewayRoutes.java
+# + GrpcGatewayUtils (envelope & error mapping). Diverifikasi 2026-08-07 (Fase 3).
+#
+# Format: VS Code "REST Client" / IntelliJ HTTP Client (.http).
+# Base URL: http://localhost:5000 (di-proxy NGINX :80). Semua route /api/*
+# dan /users*, /roles*, /transactions* dilindungi JWT — kecuali
+# /api/chaos/* (control plane internal, tanpa JWT middleware).
+#
+# Envelope sukses (JSON protobuf, snake_case):
+#   { "status": "success", "message": "...", "data": {...} }
+#   List: { "status": "success", "message": "...", "data": [...],
+#           "pagination": { "current_page", "page_size", "total_pages",
+#                           "total_records" } }
+#
+# Envelope error (konsisten semua endpoint):
+#   { "status": "error", "message": "...", "code": <int>,
+#     "trace_id": "<uuid>" }        (code = HTTP status)
+#
+# Error mapping (GrpcGatewayUtils.handleError):
+#   INVALID_ARGUMENT/FAILED_PRECONDITION → 400   NOT_FOUND → 404
+#   ALREADY_EXISTS → 409   UNAUTHENTICATED → 401   PERMISSION_DENIED → 403
+#   RESOURCE_EXHAUSTED → 429   UNAVAILABLE → 503   lain → 500
+#
+# Auth: token dari POST /login (JSON): { "email", "password" } →
+#   { data: { "access_token", "refresh_token", ... } } → pakai
+#   "Authorization: Bearer {{token}}".
+#
+# Catatan port gRPC internal (gap #7 CLOSED, semua 5005x/5006x):
+#   auth 50051 · role 50052 · user 50053 · merchant 50054 · order 50055
+#   product 50056 · order_item 50057 · transaction 50058 · cashier 50061
+#   category 50062 · apigateway REST :5000 · email = Kafka consumer (tanpa gRPC)
+# =============================================================================
+
+@base = http://localhost:5000
+@token = <isi_access_token_dari_login>
+
+# ────────────────────────────────────────────────────────────────────────────
+# 1. PUBLIC / AUTH
+# ────────────────────────────────────────────────────────────────────────────
+
+# Health check (publik)
+GET {{base}}/health
+
+### Register user baru (JSON)
+POST {{base}}/register
+Content-Type: application/json
+
+{
+  "firstname": "John",
+  "lastname": "Doe",
+  "email": "john@example.com",
+  "password": "P@ssw0rd123!"
+}
+
+### Login (JSON) → { status, message, data: { access_token, refresh_token } }
+POST {{base}}/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "P@ssw0rd123!"
+}
+
+### Refresh token
+POST {{base}}/refresh-token
+Content-Type: application/json
+
+{
+  "refresh_token": "..."
+}
+
+### Get current user (JWT)
+GET {{base}}/me
+Authorization: Bearer {{token}}
+
+### Logout (JWT)
+GET {{base}}/logout
+Authorization: Bearer {{token}}
+
+# ────────────────────────────────────────────────────────────────────────────
+# 2. USER  (/users* — JWT; list views ADMIN)
+# ────────────────────────────────────────────────────────────────────────────
+
+GET {{base}}/users
+Authorization: Bearer {{token}}
+
+GET {{base}}/users/active
+Authorization: Bearer {{token}}
+
+GET {{base}}/users/trashed
+Authorization: Bearer {{token}}
+
+GET {{base}}/users/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/users/update/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "firstname": "Jane" }
+
+POST {{base}}/users/restore/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/users/trashed/1
+Authorization: Bearer {{token}}
+
+DELETE {{base}}/users/deletePermanent/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/users/restore-all
+Authorization: Bearer {{token}}
+
+POST {{base}}/users/delete-all
+Authorization: Bearer {{token}}
+
+# ────────────────────────────────────────────────────────────────────────────
+# 3. ROLE  (/roles* — JWT; list views ADMIN)
+# ────────────────────────────────────────────────────────────────────────────
+
+GET {{base}}/roles
+Authorization: Bearer {{token}}
+
+GET {{base}}/roles/active
+Authorization: Bearer {{token}}
+
+GET {{base}}/roles/trashed
+Authorization: Bearer {{token}}
+
+GET {{base}}/roles/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/roles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "MANAGER" }
+
+POST {{base}}/roles/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "MANAGER" }
+
+POST {{base}}/roles/restore/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/roles/trashed/1
+Authorization: Bearer {{token}}
+
+DELETE {{base}}/roles/deletePermanent/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/roles/restore-all
+Authorization: Bearer {{token}}
+
+POST {{base}}/roles/delete-all
+Authorization: Bearer {{token}}
+
+# ────────────────────────────────────────────────────────────────────────────
+# 4. MERCHANT  (/api/merchants* — JWT)
+# ────────────────────────────────────────────────────────────────────────────
+
+GET {{base}}/api/merchants
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/merchants/active
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/merchants/trashed
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/merchants/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/merchants
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Toko ABC", "email": "merchant@example.com" }
+
+PUT {{base}}/api/merchants
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "merchant_id": 1, "name": "Toko ABC Updated" }
+
+PATCH {{base}}/api/merchants/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "merchant_id": 1, "status": "ACTIVE" }
+
+PATCH {{base}}/api/merchants/trash/1
+Authorization: Bearer {{token}}
+
+PATCH {{base}}/api/merchants/restore/1
+Authorization: Bearer {{token}}
+
+DELETE {{base}}/api/merchants/permanent/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/merchants/restore-all
+Authorization: Bearer {{token}}
+
+DELETE {{base}}/api/merchants/delete-all
+Authorization: Bearer {{token}}
+
+# ────────────────────────────────────────────────────────────────────────────
+# 5. MERCHANT DOCUMENT  (/api/merchant-documents* — JWT)
+# ────────────────────────────────────────────────────────────────────────────
+
+GET {{base}}/api/merchant-documents
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/merchant-documents/active
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/merchant-documents/trashed
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/merchant-documents/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/merchant-documents
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "merchant_id": 1, "name": "NPWP" }
+
+PUT {{base}}/api/merchant-documents/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "NPWP Updated" }
+
+PATCH {{base}}/api/merchant-documents/1/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "status": "VERIFIED" }
+
+PATCH {{base}}/api/merchant-documents/1/trash
+Authorization: Bearer {{token}}
+
+PATCH {{base}}/api/merchant-documents/1/restore
+Authorization: Bearer {{token}}
+
+DELETE {{base}}/api/merchant-documents/1/permanent
+Authorization: Bearer {{token}}
+
+PATCH {{base}}/api/merchant-documents/restore-all
+Authorization: Bearer {{token}}
+
+DELETE {{base}}/api/merchant-documents/permanent-all
+Authorization: Bearer {{token}}
+
+# ────────────────────────────────────────────────────────────────────────────
+# 6. TRANSACTION  (/transactions* — JWT)
+# ────────────────────────────────────────────────────────────────────────────
+
+GET {{base}}/transactions
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/active
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/trashed
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/monthly-success
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/yearly-success
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/monthly-failed
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/yearly-failed
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/monthly-methods
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/yearly-methods
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/monthly-success-by-merchant/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/yearly-success-by-merchant/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/monthly-failed-by-merchant/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/yearly-failed-by-merchant/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/monthly-methods-by-merchant/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/transactions/yearly-methods-by-merchant/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/transactions/create
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "order_id": 1, "payment_method": "CASH", "amount": 150000 }
+
+POST {{base}}/transactions/update
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "transaction_id": 1, "status": "SUCCESS" }
+
+POST {{base}}/transactions/trash/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/transactions/restore/1
+Authorization: Bearer {{token}}
+
+DELETE {{base}}/transactions/permanent/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/transactions/restore-all
+Authorization: Bearer {{token}}
+
+DELETE {{base}}/transactions/permanent-all
+Authorization: Bearer {{token}}
+
+# ────────────────────────────────────────────────────────────────────────────
+# 7. CASHIER  (/api/cashiers* — JWT)
+# ────────────────────────────────────────────────────────────────────────────
+
+GET {{base}}/api/cashiers
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/cashiers/active
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/cashiers/trashed
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/cashiers/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/cashiers/by-merchant/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/cashiers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "merchant_id": 1, "name": "Kasir 1" }
+
+PUT {{base}}/api/cashiers/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Kasir 1 Updated" }
+
+POST {{base}}/api/cashiers/restore/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/cashiers/trashed/1
+Authorization: Bearer {{token}}
+
+DELETE {{base}}/api/cashiers/deletePermanent/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/cashiers/restore-all
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/cashiers/delete-all
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/cashiers/stats/monthly-total-sales
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/cashiers/stats/yearly-total-sales
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/cashiers/stats/monthly-total-sales-by-id/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/cashiers/stats/yearly-total-sales-by-id/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/cashiers/stats/monthly-total-sales-by-merchant/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/cashiers/stats/yearly-total-sales-by-merchant/1
+Authorization: Bearer {{token}}
+
+# ────────────────────────────────────────────────────────────────────────────
+# 8. CATEGORY  (/api/categories* — JWT)
+# ────────────────────────────────────────────────────────────────────────────
+
+GET {{base}}/api/categories
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/categories/active
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/categories/trashed
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/categories/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Minuman", "slug_category": "minuman" }
+
+PUT {{base}}/api/categories/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Minuman Updated" }
+
+POST {{base}}/api/categories/restore/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/categories/trashed/1
+Authorization: Bearer {{token}}
+
+DELETE {{base}}/api/categories/deletePermanent/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/categories/restore-all
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/categories/delete-all
+Authorization: Bearer {{token}}
+
+# ────────────────────────────────────────────────────────────────────────────
+# 9. PRODUCT  (/api/products* — JWT; create = FORM-DATA)
+# ────────────────────────────────────────────────────────────────────────────
+
+GET {{base}}/api/products
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/products/active
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/products/trashed
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/products/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/products/by-merchant/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/products/by-category/minuman
+Authorization: Bearer {{token}}
+
+# Create product — FORM-DATA (lihat ProductProxyHandler.create; wajib
+# merchant_id & category_id valid di DB karena FK).
+POST {{base}}/api/products
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=boundary123
+
+--boundary123
+Content-Disposition: form-data; name="merchant_id"
+
+1
+--boundary123
+Content-Disposition: form-data; name="category_id"
+
+1
+--boundary123
+Content-Disposition: form-data; name="name"
+
+Produk Baru
+--boundary123
+Content-Disposition: form-data; name="price"
+
+150000
+--boundary123
+Content-Disposition: form-data; name="count_in_stock"
+
+50
+--boundary123
+Content-Disposition: form-data; name="brand"
+
+TestBrand
+--boundary123
+Content-Disposition: form-data; name="weight"
+
+100
+--boundary123--
+
+PUT {{base}}/api/products/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Produk Updated", "price": 160000 }
+
+POST {{base}}/api/products/restore/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/products/trashed/1
+Authorization: Bearer {{token}}
+
+DELETE {{base}}/api/products/deletePermanent/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/products/restore-all
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/products/delete-all
+Authorization: Bearer {{token}}
+
+# ────────────────────────────────────────────────────────────────────────────
+# 10. ORDER  (/api/orders* — JWT)
+# ────────────────────────────────────────────────────────────────────────────
+
+GET {{base}}/api/orders
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/active
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/trashed
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/by-merchant/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/orders
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "merchant_id": 1, "cashier_id": 1, "items": [ { "product_id": 1, "quantity": 2 } ] }
+
+PUT {{base}}/api/orders/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "cashier_id": 1, "items": [ { "product_id": 1, "quantity": 3 } ] }
+
+POST {{base}}/api/orders/restore/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/orders/trashed/1
+Authorization: Bearer {{token}}
+
+DELETE {{base}}/api/orders/deletePermanent/1
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/orders/restore-all
+Authorization: Bearer {{token}}
+
+POST {{base}}/api/orders/delete-all
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/stats/monthly-total-revenue
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/stats/yearly-total-revenue
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/stats/monthly-total-revenue-by-id/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/stats/yearly-total-revenue-by-id/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/stats/monthly-total-revenue-by-merchant/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/stats/yearly-total-revenue-by-merchant/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/stats/monthly-revenue
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/stats/yearly-revenue
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/stats/monthly-revenue-by-merchant/1
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/orders/stats/yearly-revenue-by-merchant/1
+Authorization: Bearer {{token}}
+
+# ────────────────────────────────────────────────────────────────────────────
+# 11. ORDER ITEM  (/api/order-items* — JWT)
+# ────────────────────────────────────────────────────────────────────────────
+
+GET {{base}}/api/order-items
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/order-items/active
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/order-items/trashed
+Authorization: Bearer {{token}}
+
+GET {{base}}/api/order-items/by-order/1
+Authorization: Bearer {{token}}
+
+# ────────────────────────────────────────────────────────────────────────────
+# 12. CHAOS CONTROL PLANE  (opsional, admin/infra)
+# ────────────────────────────────────────────────────────────────────────────
+
+GET {{base}}/api/chaos/policies
+
+POST {{base}}/api/chaos/halt
+
+POST {{base}}/api/chaos/policies/reload
+
+# =============================================================================
+# END OF CONTRACT — total route terdaftar: ~95 (lihat GatewayRoutes.register)
+# =============================================================================

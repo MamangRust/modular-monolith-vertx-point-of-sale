@@ -1,0 +1,138 @@
+warmupDuration: "10s"
+enableDefaultIgnored: true
+policies:
+  - name: "http-get-products-limit"
+    type: "http"
+    target: "GET:/api/products"
+    enabled: false
+    errorChance: 0.5
+    errorCode: 429
+    errorBody: '{"error":"too_many_requests","message":"Rate limit exceeded by chaos simulation"}'
+    latencyMs: 1000
+
+  - name: "http-get-categories-delay"
+    type: "http"
+    target: "GET:/api/categories"
+    enabled: false
+    errorChance: 0.2
+    latencyMs: 1500
+
+  - name: "http-post-orders-failure"
+    type: "http"
+    target: "POST:/api/orders"
+    enabled: false
+    errorChance: 0.1
+    errorCode: 503
+    errorBody: '{"error":"service_unavailable","message":"Simulated order placement chaos failure"}'
+
+  - name: "http-post-transactions-failure"
+    type: "http"
+    target: "POST:/transactions/create"
+    enabled: false
+    errorChance: 0.15
+    errorCode: 503
+    errorBody: '{"error":"service_unavailable","message":"Simulated transaction chaos failure"}'
+
+  - name: "http-post-login-failure"
+    type: "http"
+    target: "POST:/login"
+    enabled: false
+    errorChance: 0.1
+    errorCode: 500
+    errorBody: '{"error":"internal_server_error","message":"Simulated authentication failure"}'
+
+  - name: "sql-user-query-deadlock"
+    type: "sql"
+    target: "users"
+    enabled: false
+    errorChance: 0.2
+    errorMessage: "ERROR: deadlock detected (simulated chaos)"
+    latencyMs: 500
+
+  - name: "sql-role-query-deadlock"
+    type: "sql"
+    target: "roles"
+    enabled: false
+    errorChance: 0.2
+    errorMessage: "ERROR: deadlock detected (simulated chaos)"
+    latencyMs: 300
+
+  # ── Fase 5: chaos aktif bertahap (ringan, tidak menyentuh smoke hurl) ──
+  # Dua policy ini hanya menambah latency kecil (tanpa error) pada tabel yang
+  # tidak dipanggil hello.hurl. Uji: GET /api/chaos/policies → enabled true;
+  # POST /api/chaos/halt → semua off; POST /api/chaos/policies/reload → balik.
+  - name: "sql-user-roles-query-delay"
+    type: "sql"
+    target: "user_roles"
+    enabled: true
+    errorChance: 0.0
+    latencyMs: 400
+
+  - name: "sql-refresh-token-query-delay"
+    type: "sql"
+    target: "refresh_token"
+    enabled: true
+    errorChance: 0.0
+    latencyMs: 500
+
+  - name: "sql-merchant-query-delay"
+    type: "sql"
+    target: "merchants"
+    enabled: false
+    errorChance: 0.3
+    latencyMs: 1000
+
+  - name: "sql-cashier-query-delay"
+    type: "sql"
+    target: "cashiers"
+    enabled: false
+    errorChance: 0.25
+    latencyMs: 600
+
+  - name: "sql-category-query-delay"
+    type: "sql"
+    target: "categories"
+    enabled: false
+    errorChance: 0.2
+    latencyMs: 400
+
+  - name: "sql-product-query-delay"
+    type: "sql"
+    target: "products"
+    enabled: false
+    errorChance: 0.3
+    latencyMs: 800
+
+  - name: "sql-order-query-deadlock"
+    type: "sql"
+    target: "orders"
+    enabled: false
+    errorChance: 0.2
+    errorMessage: "ERROR: deadlock detected (simulated chaos)"
+    latencyMs: 800
+
+  - name: "sql-order-item-query-delay"
+    type: "sql"
+    target: "order_items"
+    enabled: false
+    errorChance: 0.3
+    latencyMs: 500
+
+  - name: "sql-transaction-query-delay"
+    type: "sql"
+    target: "transactions"
+    enabled: false
+    errorChance: 0.2
+    latencyMs: 1200
+
+  - name: "cpu-pressure-test"
+    type: "cpu"
+    enabled: false
+    cpuCores: 2
+    duration: "2m"
+
+  - name: "memory-leak-test"
+    type: "memory"
+    enabled: false
+    memoryMb: 100
+    duration: "2m"

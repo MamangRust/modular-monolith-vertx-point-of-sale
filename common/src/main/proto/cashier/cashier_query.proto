@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+option go_package = 'github.com/MamangRust/monolith-payment-gateway-pb/cashier';
+
+package pb.cashier;
+
+import "common/api.proto";
+import "cashier/cashier.proto";
+
+message ApiResponsePaginationCashierDeleteAt {
+  string status = 1;
+  string message = 2;
+  repeated CashierResponseDeleteAt data = 3;
+  pb.common.PaginationMeta pagination = 4;
+}
+
+message ApiResponsePaginationCashier {
+  string status = 1;
+  string message = 2;
+  repeated CashierResponse data = 3;
+  pb.common.PaginationMeta pagination = 4;
+}
+
+message ApiResponseCashierMonthlyTotalSales {
+  string status = 1;
+  string message = 2;
+  repeated CashierResponseMonthTotalSales data = 3;
+}
+
+message ApiResponseCashierYearlyTotalSales {
+  string status = 1;
+  string message = 2;
+  repeated CashierResponseYearTotalSales data = 3;
+}
+
+service CashierService {
+  rpc FindMonthlyTotalSales(FindYearMonthTotalSales) returns (ApiResponseCashierMonthlyTotalSales) {}
+  rpc FindYearlyTotalSales(FindYearTotalSales) returns (ApiResponseCashierYearlyTotalSales) {}
+
+  rpc FindMonthlyTotalSalesById(FindYearMonthTotalSalesById) returns (ApiResponseCashierMonthlyTotalSales) {}
+  rpc FindYearlyTotalSalesById(FindYearTotalSalesById) returns (ApiResponseCashierYearlyTotalSales) {}
+
+  rpc FindMonthlyTotalSalesByMerchant(FindYearMonthTotalSalesByMerchant) returns (ApiResponseCashierMonthlyTotalSales) {}
+  rpc FindYearlyTotalSalesByMerchant(FindYearTotalSalesByMerchant) returns (ApiResponseCashierYearlyTotalSales) {}
+
+  rpc FindAll(FindAllCashierRequest) returns (ApiResponsePaginationCashier) {}
+  rpc FindById(FindByIdCashierRequest) returns (ApiResponseCashier) {}
+
+  rpc FindMonthSales(FindYearCashier) returns (ApiResponseCashierMonthSales) {}
+  rpc FindYearSales(FindYearCashier) returns (ApiResponseCashierYearSales) {}
+  rpc FindMonthSalesByMerchant(FindYearCashierByMerchant) returns (ApiResponseCashierMonthSales) {}
+  rpc FindYearSalesByMerchant(FindYearCashierByMerchant) returns (ApiResponseCashierYearSales) {}
+
+  rpc FindMonthSalesById(FindYearCashierById) returns (ApiResponseCashierMonthSales) {}
+  rpc FindYearSalesById(FindYearCashierById) returns (ApiResponseCashierYearSales) {}
+
+  rpc FindByActive(FindAllCashierRequest) returns (ApiResponsePaginationCashierDeleteAt) {}
+  rpc FindByTrashed(FindAllCashierRequest) returns (ApiResponsePaginationCashierDeleteAt) {}
+
+  rpc FindByMerchant(FindByMerchantCashierRequest) returns (ApiResponsePaginationCashier) {}
+}

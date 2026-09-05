@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "pb.transaction";
+option java_outer_classname = "TransactionProto";
+
+package pb.transaction;
+
+import "google/protobuf/wrappers.proto";
+import "common/api.proto";
+
+// ─── Request messages ────────────────────────────────────────────────────────
+
+message FindByIdTransactionRequest {
+  int32 transaction_id = 1;
+}
+
+// ─── Response messages ───────────────────────────────────────────────────────
+
+message TransactionResponse {
+  int32  id             = 1;
+  int32  order_id       = 2;
+  int32  merchant_id    = 3;
+  string payment_method = 4;
+  int32  amount         = 5;
+  int32  change_amount  = 6;
+  string payment_status = 7;
+  string created_at     = 8;
+  string updated_at     = 9;
+}
+
+message TransactionResponseDeleteAt {
+  int32  id             = 1;
+  int32  order_id       = 2;
+  int32  merchant_id    = 3;
+  string payment_method = 4;
+  int32  amount         = 5;
+  int32  change_amount  = 6;
+  string payment_status = 7;
+  string created_at     = 8;
+  string updated_at     = 9;
+  google.protobuf.StringValue deleted_at = 10;
+}
+
+// ─── API-level single-record responses ───────────────────────────────────────
+
+message ApiResponseTransaction {
+  string status  = 1;
+  string message = 2;
+  TransactionResponse data = 3;
+}
+
+message ApiResponseTransactionDeleteAt {
+  string status  = 1;
+  string message = 2;
+  TransactionResponseDeleteAt data = 3;
+}
+
+message ApiResponsesTransaction {
+  string status  = 1;
+  string message = 2;
+  repeated TransactionResponse data = 3;
+}
+
+// ─── Pagination responses ─────────────────────────────────────────────────────
+
+message ApiResponsePaginationTransaction {
+  string status  = 1;
+  string message = 2;
+  repeated TransactionResponse data = 3;
+  pb.common.PaginationMeta pagination = 4;
+}
+
+message ApiResponsePaginationTransactionDeleteAt {
+  string status  = 1;
+  string message = 2;
+  repeated TransactionResponseDeleteAt data = 3;
+  pb.common.PaginationMeta pagination = 4;
+}
+
+// ─── Bulk-operation responses ─────────────────────────────────────────────────
+
+message ApiResponseTransactionDelete {
+  string status  = 1;
+  string message = 2;
+}
+
+message ApiResponseTransactionAll {
+  string status  = 1;
+  string message = 2;
+}

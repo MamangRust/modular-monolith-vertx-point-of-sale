@@ -1,0 +1,29 @@
+# =============================================================================
+# Alertmanager Configuration
+# =============================================================================
+# NOTE: SMTP credentials are injected via environment variables.
+# For local dev, create a docker.env or .env file:
+#
+#   SMTP_SERVER=smtp.ethereal.email
+#   SMTP_PORT=587
+#   SMTP_USER=CHANGE_ME
+#   SMTP_PASS=CHANGE_ME
+#
+# In production, use Kubernetes Secrets or your platform's secret store.
+# =============================================================================
+
+global:
+  smtp_smarthost: '${SMTP_SERVER}:${SMTP_PORT}'
+  smtp_from: '${SMTP_USER}'
+  smtp_auth_username: '${SMTP_USER}'
+  smtp_auth_password: '${SMTP_PASS}'
+  smtp_require_tls: true
+
+route:
+  receiver: 'email-notifications'
+
+receivers:
+  - name: 'email-notifications'
+    email_configs:
+      - to: '${SMTP_USER}'
+        send_resolved: true

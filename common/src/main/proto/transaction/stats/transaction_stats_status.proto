@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "pb.transaction.stats";
+option java_outer_classname = "TransactionStatsStatusProto";
+
+package pb.transaction.stats;
+
+import "transaction/transaction.proto";
+
+// ─── Request messages ─────────────────────────────────────────────────────────
+
+message FindMonthlyTransactionStatus {
+  int32 year  = 1;
+  int32 month = 2;
+}
+
+message FindYearlyTransactionStatus {
+  int32 year = 1;
+}
+
+message FindMonthlyTransactionStatusByMerchant {
+  int32 year        = 1;
+  int32 month       = 2;
+  int32 merchant_id = 3;
+}
+
+message FindYearlyTransactionStatusByMerchant {
+  int32 year        = 1;
+  int32 merchant_id = 2;
+}
+
+// ─── Response messages ────────────────────────────────────────────────────────
+
+message TransactionMonthStatusSuccessResponse {
+  string year          = 1;
+  string month         = 2;
+  int32  total_success = 3;
+  int32  total_amount  = 4;
+}
+
+message TransactionYearStatusSuccessResponse {
+  string year          = 1;
+  int32  total_success = 2;
+  int32  total_amount  = 3;
+}
+
+message TransactionMonthStatusFailedResponse {
+  string year         = 1;
+  string month        = 2;
+  int32  total_failed = 3;
+  int32  total_amount = 4;
+}
+
+message TransactionYearStatusFailedResponse {
+  string year         = 1;
+  int32  total_failed = 2;
+  int32  total_amount = 3;
+}
+
+// ─── API responses ────────────────────────────────────────────────────────────
+
+message ApiResponseTransactionMonthStatusSuccess {
+  string status  = 1;
+  string message = 2;
+  repeated TransactionMonthStatusSuccessResponse data = 3;
+}
+
+message ApiResponseTransactionYearStatusSuccess {
+  string status  = 1;
+  string message = 2;
+  repeated TransactionYearStatusSuccessResponse data = 3;
+}
+
+message ApiResponseTransactionMonthStatusFailed {
+  string status  = 1;
+  string message = 2;
+  repeated TransactionMonthStatusFailedResponse data = 3;
+}
+
+message ApiResponseTransactionYearStatusFailed {
+  string status  = 1;
+  string message = 2;
+  repeated TransactionYearStatusFailedResponse data = 3;
+}
+
+// ─── Service ─────────────────────────────────────────────────────────────────
+
+service TransactionStatsStatusService {
+  rpc FindMonthStatusSuccess(FindMonthlyTransactionStatus)
+      returns (ApiResponseTransactionMonthStatusSuccess) {}
+
+  rpc FindYearStatusSuccess(FindYearlyTransactionStatus)
+      returns (ApiResponseTransactionYearStatusSuccess) {}
+
+  rpc FindMonthStatusFailed(FindMonthlyTransactionStatus)
+      returns (ApiResponseTransactionMonthStatusFailed) {}
+
+  rpc FindYearStatusFailed(FindYearlyTransactionStatus)
+      returns (ApiResponseTransactionYearStatusFailed) {}
+
+  rpc FindMonthStatusSuccessByMerchant(FindMonthlyTransactionStatusByMerchant)
+      returns (ApiResponseTransactionMonthStatusSuccess) {}
+
+  rpc FindYearStatusSuccessByMerchant(FindYearlyTransactionStatusByMerchant)
+      returns (ApiResponseTransactionYearStatusSuccess) {}
+
+  rpc FindMonthStatusFailedByMerchant(FindMonthlyTransactionStatusByMerchant)
+      returns (ApiResponseTransactionMonthStatusFailed) {}
+
+  rpc FindYearStatusFailedByMerchant(FindYearlyTransactionStatusByMerchant)
+      returns (ApiResponseTransactionYearStatusFailed) {}
+}

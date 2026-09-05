@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "pb.transaction.stats";
+option java_outer_classname = "TransactionStatsMethodProto";
+
+package pb.transaction.stats;
+
+import "transaction/transaction.proto";
+
+// ─── Request messages ─────────────────────────────────────────────────────────
+
+message YearTransactionMethod {
+  int32 year = 1;
+}
+
+message MonthTransactionMethod {
+  int32 year  = 1;
+  int32 month = 2;
+}
+
+message MonthTransactionMethodByMerchant {
+  int32 merchant_id = 1;
+  int32 year        = 2;
+  int32 month       = 3;
+}
+
+message YearTransactionMethodByMerchant {
+  int32 merchant_id = 1;
+  int32 year        = 2;
+}
+
+// ─── Response messages ────────────────────────────────────────────────────────
+
+message TransactionMonthMethodResponse {
+  string month              = 1;
+  string payment_method     = 2;
+  int32  total_transactions = 3;
+  int32  total_amount       = 4;
+}
+
+message TransactionYearMethodResponse {
+  string year               = 1;
+  string payment_method     = 2;
+  int32  total_transactions = 3;
+  int32  total_amount       = 4;
+}
+
+// ─── API responses ────────────────────────────────────────────────────────────
+
+message ApiResponseTransactionMonthMethod {
+  string status  = 1;
+  string message = 2;
+  repeated TransactionMonthMethodResponse data = 3;
+}
+
+message ApiResponseTransactionYearMethod {
+  string status  = 1;
+  string message = 2;
+  repeated TransactionYearMethodResponse data = 3;
+}
+
+// ─── Service ─────────────────────────────────────────────────────────────────
+
+service TransactionStatsMethodService {
+  rpc FindMonthMethodSuccess(MonthTransactionMethod)
+      returns (ApiResponseTransactionMonthMethod) {}
+
+  rpc FindYearMethodSuccess(YearTransactionMethod)
+      returns (ApiResponseTransactionYearMethod) {}
+
+  rpc FindMonthMethodByMerchantSuccess(MonthTransactionMethodByMerchant)
+      returns (ApiResponseTransactionMonthMethod) {}
+
+  rpc FindYearMethodByMerchantSuccess(YearTransactionMethodByMerchant)
+      returns (ApiResponseTransactionYearMethod) {}
+
+  rpc FindMonthMethodFailed(MonthTransactionMethod)
+      returns (ApiResponseTransactionMonthMethod) {}
+
+  rpc FindYearMethodFailed(YearTransactionMethod)
+      returns (ApiResponseTransactionYearMethod) {}
+
+  rpc FindMonthMethodByMerchantFailed(MonthTransactionMethodByMerchant)
+      returns (ApiResponseTransactionMonthMethod) {}
+
+  rpc FindYearMethodByMerchantFailed(YearTransactionMethodByMerchant)
+      returns (ApiResponseTransactionYearMethod) {}
+}
